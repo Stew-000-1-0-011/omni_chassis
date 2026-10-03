@@ -4,7 +4,7 @@
   <name>omni_chassis</name>
   <version>0.0.0</version>
   <description>
-    N輪オムニの足回りドライバ。機体速度 (cmd_vel) を逆運動学で各車輪の角速度にし、速度・加速度の制限をかけて robomas_plugins のモータ目標として出す。
+    N輪オムニの足回りドライバ。機体速度 (cmd_vel) を逆運動学で各車輪の角速度にし、速度・加速度の制限をかけて、車輪ごとにモータ軸の目標角速度として出す。
   </description>
   <maintainer email="shnsk0204@gmail.com">Stew</maintainer>
   <license>MIT</license>
@@ -14,12 +14,9 @@
   <depend>rclcpp</depend>
   <depend>geometry_msgs</depend>
   <depend>std_msgs</depend>
-  <depend>std_srvs</depend>
-  <depend>robomas_plugins</depend>
 
   <exec_depend>launch</exec_depend>
   <exec_depend>launch_ros</exec_depend>
-  <exec_depend>rclcpp_components</exec_depend>
 
   <test_depend>ament_cmake_test</test_depend>
 

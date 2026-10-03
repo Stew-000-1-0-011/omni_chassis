@@ -20,8 +20,6 @@ find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(std_msgs REQUIRED)
-find_package(std_srvs REQUIRED)
-find_package(robomas_plugins REQUIRED)
 
 # --- 運動学と制限 (ROS非依存) ---
 add_library(omni_chassis_core STATIC
@@ -44,8 +42,6 @@ target_link_libraries(chassis_node
 		rclcpp::rclcpp
 		${geometry_msgs_TARGETS}
 		${std_msgs_TARGETS}
-		${std_srvs_TARGETS}
-		${robomas_plugins_TARGETS}
 )
 
 install(TARGETS chassis_node

@@ -5,10 +5,7 @@ chassis_node:
     # --- 起動時のみ ---
     cmd_vel_topic: cmd_vel
     cmd_vel_stamped: false      # true なら TwistStamped で受ける
-    control_rate: 50.0          # [Hz] robomas_target を出す周期
-    robomas_frame_topic: robomas_frame
-    robomas_target_prefix: robomas_target   # 出力は <prefix><モータ番号>
-    enable_on_start: true       # false なら ~/enable で有効にするまで脱力
+    control_rate: 50.0          # [Hz] 目標を出す周期
 
     # --- 車輪 (機体座標系: x 前、y 左。原点は回転中心にしたい点) ---
     # 要素の並びは全項目で揃える。ここの値は 4輪オムニ X 配置の例なので、実機に合わせること。
@@ -18,18 +15,9 @@ chassis_node:
       y: [0.2, 0.2, -0.2, -0.2]          # [m]
       angle_deg: [135.0, 225.0, 315.0, 45.0]
       radius: [0.05, 0.05, 0.05, 0.05]   # [m]
-      motor: [1, 2, 3, 4]                # robomas のモータ番号 (1..8)
+      # モータ軸の目標角速度 [rad/s] (std_msgs/Float64) を出すトピック
+      topic: [wheel0/target_velocity, wheel1/target_velocity, wheel2/target_velocity, wheel3/target_velocity]
       gear_ratio: [19.2, 19.2, 19.2, 19.2]  # モータ回転 / 車輪回転。負で回転方向を反転
-      c620: [true, true, true, true]     # C620 (M3508) なら true、C610 (M2006) なら false
-
-    # モータ軸の角速度 [rad/s] -> robomas_target の値。ファームの速度の単位に合わせる
-    target_per_motor_rad_s: 1.0
-
-    # 速度制御モードに入れるときに送るゲインと温度上限 (robomas_plugins の get_vel_frame と同じ既定値)
-    motor:
-      velkp: 0.15
-      velki: 9.0
-      temp_limit: 50
 
     # --- 実行中に変えられる ---
     cmd_timeout: 0.2            # [s] cmd_vel がこれより来なければ目標をゼロにする
