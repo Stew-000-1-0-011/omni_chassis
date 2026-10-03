@@ -4,7 +4,7 @@
   <name>omni_chassis</name>
   <version>0.0.0</version>
   <description>
-    N輪オムニの足回りドライバ。機体速度 (cmd_vel) を逆運動学で各車輪の角速度にし、速度・加速度の制限をかけて、車輪ごとにモータ軸の目標角速度として出す。
+    N輪オムニの足回りドライバ。機体速度 (cmd_vel) を逆運動学で各車輪の角速度にし、速度・加速度の制限をかけて、車輪ごとの目標角速度として出す。
   </description>
   <maintainer email="shnsk0204@gmail.com">Stew</maintainer>
   <license>MIT</license>

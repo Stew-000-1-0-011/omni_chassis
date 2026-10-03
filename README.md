@@ -2,7 +2,7 @@
 
 N輪オムニの足回りドライバ (ROS 2 パッケージ)。
 機体速度 `cmd_vel` (vx, vy, omega) を逆運動学で各車輪の角速度にし、
-速度・加速度の制限をかけて、車輪ごとにモータ軸の目標角速度 [rad/s] (`std_msgs/Float64`) として出す。
+速度・加速度の制限をかけて、車輪ごとの目標角速度 [rad/s] (`std_msgs/Float64`) として出す。
 
 [holonomic_tracker](https://github.com/Stew-000-1-0-011/holonomic_tracker) の下位として使う想定
 (holonomic_tracker は機体速度までしか扱わず、逆運動学と車輪ごとの制限はこちらの仕事)。
@@ -33,7 +33,7 @@ ros2 launch omni_chassis chassis_node.launch.py
 | 方向 | トピック | 型 |
 | --- | --- | --- |
 | sub | `cmd_vel_topic` (既定 `cmd_vel`) | `geometry_msgs/msg/Twist` (機体座標系)。`cmd_vel_stamped: true` で `TwistStamped` |
-| pub | `wheels.topic` の各トピック | `std_msgs/msg/Float64` (モータ軸の目標角速度 [rad/s]) |
+| pub | `wheels.topic` の各トピック | `std_msgs/msg/Float64` (目標角速度 [rad/s]。車輪軸の角速度 × `gear_ratio`) |
 | pub | `~/wheel_speeds` | `std_msgs/msg/Float64MultiArray` (制限後の車輪軸の角速度 [rad/s]。調整用) |
 
 `control_rate` の周期で全車輪の目標を出し続ける。`cmd_timeout` 以上 `cmd_vel` が来なければ
@@ -48,11 +48,13 @@ holonomic_tracker は止まるとき 1 度ゼロを出して黙るので、そ�
 - `wheels.angle_deg`: 車輪が**正転**したときに接地点が機体を押す向き [deg]
   (フリーローラはこれに直交するとみなす)
 - `wheels.radius`: 車輪半径 [m]
-- `wheels.topic`: モータ軸の目標角速度を出すトピック
-- `wheels.gear_ratio`: モータ回転 / 車輪回転。**負にすると回転方向を反転**する
+- `wheels.topic`: 目標角速度を出すトピック
+- `wheels.gear_ratio`: 出力軸の回転 / 車輪の回転。**負にすると回転方向を反転**する
   (モータの付け向きで正転の向きが変わる場合に使う)
 
-出力は `車輪角速度 [rad/s] * gear_ratio`。
+出力は `車輪角速度 [rad/s] * gear_ratio`。モータドライバが車輪軸基準の速度を受けるなら
+(mini-shirasu で `encoder_cpr` に減速比を織り込んだ場合など) `gear_ratio` は ±1、
+モータ軸基準なら減速比にする。
 
 車輪 i の角速度は、接地点の速度 `(vx - omega*y, vy + omega*x)` の駆動方向成分を半径で割ったもの。
 起動時に、配置で (vx, vy, omega) を独立に出せるか (逆運動学の行列 J について J^T J が正則か) を検査し、

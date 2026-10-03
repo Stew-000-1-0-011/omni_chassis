@@ -15,9 +15,10 @@ chassis_node:
       y: [0.2, 0.2, -0.2, -0.2]          # [m]
       angle_deg: [135.0, 225.0, 315.0, 45.0]
       radius: [0.05, 0.05, 0.05, 0.05]   # [m]
-      # モータ軸の目標角速度 [rad/s] (std_msgs/Float64) を出すトピック
+      # 目標角速度 [rad/s] (std_msgs/Float64) を出すトピック
       topic: [wheel0/target_velocity, wheel1/target_velocity, wheel2/target_velocity, wheel3/target_velocity]
-      gear_ratio: [19.2, 19.2, 19.2, 19.2]  # モータ回転 / 車輪回転。負で回転方向を反転
+      # 出力軸の回転 / 車輪の回転。負で回転方向を反転。ドライバが車輪軸基準なら ±1
+      gear_ratio: [1.0, 1.0, 1.0, 1.0]
 
     # --- 実行中に変えられる ---
     cmd_timeout: 0.2            # [s] cmd_vel がこれより来なければ目標をゼロにする

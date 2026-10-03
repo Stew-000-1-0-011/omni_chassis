@@ -3,7 +3,7 @@
 ///
 /// - `cmd_vel` (機体座標系の vx, vy, omega) を受け取る
 /// - 逆運動学で各車輪の角速度にし、速度・加速度の制限をかける
-/// - 減速比を掛けて、車輪ごとにモータ軸の目標角速度 [rad/s] (std_msgs/Float64) を出す。
+/// - `gear_ratio` を掛けて、車輪ごとの目標角速度 [rad/s] (std_msgs/Float64) を出す。
 ///   モータドライバとの通信 (例: mini_shirasu_ros) はこのノードの仕事ではない
 ///
 /// 運動学と制限は ROS 非依存 (kinematics.cpp)。ここは ROS の入出力とパラメータだけを見る。
@@ -33,9 +33,9 @@ namespace {
 
 	/// 車輪1つぶんの、運動学以外の設定
 	struct Motor {
-		/// モータ軸の目標角速度を出すトピック
+		/// 目標角速度を出すトピック
 		std::string topic{};
-		/// モータ回転 / 車輪回転。負にすると回転方向を反転する
+		/// 出力軸の回転 / 車輪の回転。負にすると回転方向を反転する
 		double gear_ratio{1.0};
 	};
 
@@ -190,7 +190,7 @@ namespace {
 			this->publish_targets(limited);
 		}
 
-		/// 車輪角速度 [rad/s] -> モータ軸の目標角速度 [rad/s]
+		/// 車輪角速度 [rad/s] -> 出力 [rad/s]
 		void publish_targets(const std::vector<double>& wheel_speeds) {
 			for (std::size_t i = 0; i < this->motors_.size(); ++i) {
 				std_msgs::msg::Float64 msg{};
