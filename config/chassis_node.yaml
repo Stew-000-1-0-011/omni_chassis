@@ -19,9 +19,15 @@ chassis_node:
       topic: [wheel0/target_velocity, wheel1/target_velocity, wheel2/target_velocity, wheel3/target_velocity]
       # 出力軸の回転 / 車輪の回転。負で回転方向を反転。ドライバが車輪軸基準なら ±1
       gear_ratio: [1.0, 1.0, 1.0, 1.0]
+      # 車輪ごとの実測 (sensor_msgs/JointState、velocity[0] が出力軸の角速度 [rad/s])。任意。
+      # あれば ~/body_velocity に機体速度の推定値 (車輪オドメトリ) を出す
+      feedback_topic: []
 
     # --- 実行中に変えられる ---
-    cmd_timeout: 0.2            # [s] cmd_vel がこれより来なければ目標をゼロにする
+    base_frame: base_link       # ~/body_velocity の frame_id
+
+    cmd_timeout: 0.2
+    feedback_timeout: 0.1       # [s] 実測がこれより古い車輪があれば ~/body_velocity を出さない            # [s] cmd_vel がこれより来なければ目標をゼロにする
     # 車輪の制限 (<= 0 で無効)。全車輪に同じ倍率をかけるので、進む向きは変わらない
     limits:
       max_wheel_speed: 0.0      # [rad/s] 車輪軸

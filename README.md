@@ -34,11 +34,20 @@ ros2 launch omni_chassis chassis_node.launch.py
 | --- | --- | --- |
 | sub | `cmd_vel_topic` (既定 `cmd_vel`) | `geometry_msgs/msg/Twist` (機体座標系)。`cmd_vel_stamped: true` で `TwistStamped` |
 | pub | `wheels.topic` の各トピック | `std_msgs/msg/Float64` (目標角速度 [rad/s]。車輪軸の角速度 × `gear_ratio`) |
+| sub | `wheels.feedback_topic` の各トピック (任意) | `sensor_msgs/msg/JointState` (`velocity[0]` = 出力軸の実測角速度 [rad/s]) |
+| pub | `~/body_velocity` | `geometry_msgs/msg/TwistStamped` (車輪の実測から求めた機体速度の推定値、機体座標系。実測があるときだけ) |
 | pub | `~/wheel_speeds` | `std_msgs/msg/Float64MultiArray` (制限後の車輪軸の角速度 [rad/s]。調整用) |
 
 `control_rate` の周期で全車輪の目標を出し続ける。`cmd_timeout` 以上 `cmd_vel` が来なければ
 目標をゼロにする (加速度制限が有効ならそれに沿って減速する)。
 holonomic_tracker は止まるとき 1 度ゼロを出して黙るので、それと組み合わせても止まる。
+
+### 車輪オドメトリ
+
+`wheels.feedback_topic` に車輪ごとの実測 (`JointState`) を並べると、`control_rate` の周期で
+最小二乗の順運動学から機体速度を求め、`~/body_velocity` に出す。時刻は車輪の実測のうち一番古いもの。
+`feedback_timeout` より古い実測がある車輪があれば出さない。車輪が滑らない前提の値なので、
+状態推定ノードの入力 (予測) に使い、姿勢そのものは LiDAR などの観測で直す。
 
 ## 車輪の配置
 

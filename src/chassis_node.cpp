@@ -4,6 +4,8 @@
 /// - `cmd_vel` (機体座標系の vx, vy, omega) を受け取る
 /// - 逆運動学で各車輪の角速度にし、速度・加速度の制限をかける
 /// - `gear_ratio` を掛けて、車輪ごとの目標角速度 [rad/s] (std_msgs/Float64) を出す。
+/// - 車輪ごとの実測 (sensor_msgs/JointState) があれば、順運動学 (最小二乗) で機体速度の推定値を
+///   `~/body_velocity` (TwistStamped、機体座標系) に出す (車輪オドメトリ)。
 ///   モータドライバとの通信 (例: mini_shirasu_ros) はこのノードの仕事ではない
 ///
 /// 運動学と制限は ROS 非依存 (kinematics.cpp)。ここは ROS の入出力とパラメータだけを見る。
@@ -21,6 +23,7 @@
 #include <geometry_msgs/msg/twist.hpp>
 #include <geometry_msgs/msg/twist_stamped.hpp>
 #include <rclcpp/rclcpp.hpp>
+#include <sensor_msgs/msg/joint_state.hpp>
 #include <std_msgs/msg/float64.hpp>
 #include <std_msgs/msg/float64_multi_array.hpp>
 
@@ -48,6 +51,7 @@ namespace {
 			const double rate = this->declare_parameter<double>("control_rate", 50.0);
 
 			this->load_wheels();
+			this->base_frame_ = this->declare_parameter<std::string>("base_frame", "base_link");
 
 			// --- 実行中に変えられる ---
 			this->declare_parameter<double>("cmd_timeout", 0.2);
@@ -66,6 +70,36 @@ namespace {
 			// --- 出力 ---
 			for (const auto& m : this->motors_) {
 				this->target_pubs_.push_back(this->create_publisher<std_msgs::msg::Float64>(m.topic, 10));
+			}
+			this->body_velocity_pub_ =
+				this->create_publisher<geometry_msgs::msg::TwistStamped>("~/body_velocity", 10);
+
+			// --- 車輪の実測 (任意) ---
+			// 各トピックの JointState の velocity[0] を、出力軸の角速度 [rad/s] として読む
+			const auto feedback = this->declare_parameter<std::vector<std::string>>(
+				"wheels.feedback_topic", std::vector<std::string>{}
+			);
+			this->feedback_timeout_ = this->declare_parameter<double>("feedback_timeout", 0.1);
+			if (!feedback.empty() && feedback.size() != this->wheels_.size()) {
+				throw std::invalid_argument(std::format(
+					"wheels.feedback_topic has {} elements, but there are {} wheels", feedback.size(), this->wheels_.size()
+				));
+			}
+			this->feedback_.resize(feedback.size());
+			for (std::size_t i = 0; i < feedback.size(); ++i) {
+				this->feedback_subs_.push_back(this->create_subscription<sensor_msgs::msg::JointState>(
+					feedback[i], rclcpp::SensorDataQoS{},
+					[this, i](const sensor_msgs::msg::JointState& m) {
+						if (m.velocity.empty()) {
+							return;
+						}
+						// 出力軸 -> 車輪軸
+						this->feedback_[i] = Feedback{
+							rclcpp::Time{m.header.stamp}.nanoseconds() == 0 ? this->now() : rclcpp::Time{m.header.stamp},
+							m.velocity[0] / this->motors_[i].gear_ratio,
+						};
+					}
+				));
 			}
 			this->wheel_speed_pub_ =
 				this->create_publisher<std_msgs::msg::Float64MultiArray>("~/wheel_speeds", 10);
@@ -165,6 +199,9 @@ namespace {
 
 		void read_runtime_params() {
 			this->cmd_timeout_ = this->get_parameter("cmd_timeout").as_double();
+			if (this->has_parameter("feedback_timeout")) {
+				this->feedback_timeout_ = this->get_parameter("feedback_timeout").as_double();
+			}
 			this->limits_ = WheelLimits{
 				.max_speed = this->get_parameter("limits.max_wheel_speed").as_double(),
 				.max_accel = this->get_parameter("limits.max_wheel_accel").as_double(),
@@ -188,6 +225,38 @@ namespace {
 				omni_chassis::limit_wheel_speeds(target, this->previous_speeds_, this->dt_, this->limits_);
 			this->previous_speeds_ = limited;
 			this->publish_targets(limited);
+			this->publish_body_velocity();
+		}
+
+		/// 車輪の実測がそろっていれば、機体速度の推定値を出す
+		void publish_body_velocity() {
+			if (this->feedback_.empty()) {
+				return;
+			}
+			const auto now = this->now();
+			std::vector<double> speeds(this->feedback_.size());
+			std::optional<rclcpp::Time> oldest{};
+			for (std::size_t i = 0; i < this->feedback_.size(); ++i) {
+				const auto& f = this->feedback_[i];
+				if (!f || (now - f->stamp).seconds() > this->feedback_timeout_) {
+					RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 5000,
+						"no recent feedback from wheel %zu; body velocity is not published", i);
+					return;
+				}
+				speeds[i] = f->speed;
+				if (!oldest || f->stamp < *oldest) {
+					oldest = f->stamp;
+				}
+			}
+			const auto twist = omni_chassis::body_twist(this->wheels_, speeds);
+			geometry_msgs::msg::TwistStamped m{};
+			// 車輪ごとに時刻がばらばらなので、一番古い時刻を付ける
+			m.header.stamp = *oldest;
+			m.header.frame_id = this->base_frame_;
+			m.twist.linear.x = twist.vx;
+			m.twist.linear.y = twist.vy;
+			m.twist.angular.z = twist.omega;
+			this->body_velocity_pub_->publish(m);
 		}
 
 		/// 車輪角速度 [rad/s] -> 出力 [rad/s]
@@ -215,10 +284,20 @@ namespace {
 		std::optional<rclcpp::Time> cmd_received_{};
 		std::vector<double> previous_speeds_{};
 
+		struct Feedback {
+			rclcpp::Time stamp;
+			double speed;  ///< 車輪軸の角速度 [rad/s]
+		};
+		std::vector<std::optional<Feedback>> feedback_{};
+		double feedback_timeout_{0.1};
+		std::string base_frame_{};
+
 		rclcpp::Subscription<geometry_msgs::msg::Twist>::SharedPtr cmd_sub_{};
 		rclcpp::Subscription<geometry_msgs::msg::TwistStamped>::SharedPtr cmd_stamped_sub_{};
 		std::vector<rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr> target_pubs_{};
 		rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr wheel_speed_pub_{};
+		rclcpp::Publisher<geometry_msgs::msg::TwistStamped>::SharedPtr body_velocity_pub_{};
+		std::vector<rclcpp::Subscription<sensor_msgs::msg::JointState>::SharedPtr> feedback_subs_{};
 		rclcpp::TimerBase::SharedPtr timer_{};
 		rclcpp::node_interfaces::PostSetParametersCallbackHandle::SharedPtr param_cb_{};
 	};
