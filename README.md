@@ -18,21 +18,23 @@ N輪オムニの足回りドライバ (ROS 2 パッケージ)。
 | --- | --- |
 | `include/omni_chassis/kinematics.hpp`, `src/kinematics.cpp` | 逆運動学・順運動学 (最小二乗)・配置の検査・車輪速度の制限。ROS非依存 |
 | `src/chassis_node.cpp` | ノード本体。ROSの入出力とパラメータだけを見る |
-| `config/chassis_node.yaml` | パラメータ (車輪配置は例なので実機に合わせる) |
 | `launch/chassis_node.launch.py` | 起動 |
 | `test/kinematics_test.cpp` | 運動学と制限のテスト (ROS不要) |
+
+
+**パラメータに既定値は無い。** 全部パラメータファイルで与える (足りなければ起動時にエラーで止まる)。この機体の値と各項目の説明は oumuamua の `src/oumuamua_bringup/config/chassis_node.yaml` にある。
 
 ## 使い方
 
 ```bash
-ros2 launch omni_chassis chassis_node.launch.py
+ros2 launch omni_chassis chassis_node.launch.py params:=/path/to/chassis_node.yaml
 ```
 
 ### トピック
 
 | 方向 | トピック | 型 |
 | --- | --- | --- |
-| sub | `cmd_vel_topic` (既定 `cmd_vel`) | `geometry_msgs/msg/Twist` (機体座標系)。`cmd_vel_stamped: true` で `TwistStamped` |
+| sub | `cmd_vel_topic` (例 `cmd_vel`) | `geometry_msgs/msg/Twist` (機体座標系)。`cmd_vel_stamped: true` で `TwistStamped` |
 | pub | `wheels.topic` の各トピック | `std_msgs/msg/Float64` (目標角速度 [rad/s]。車輪軸の角速度 × `gear_ratio`) |
 | sub | `wheels.feedback_topic` の各トピック (任意) | `sensor_msgs/msg/JointState` (`velocity[0]` = 出力軸の実測角速度 [rad/s]) |
 | pub | `~/body_velocity` | `geometry_msgs/msg/TwistStamped` (車輪の実測から求めた機体速度の推定値、機体座標系。実測があるときだけ) |
@@ -69,8 +71,8 @@ holonomic_tracker は止まるとき 1 度ゼロを出して黙るので、そ�
 起動時に、配置で (vx, vy, omega) を独立に出せるか (逆運動学の行列 J について J^T J が正則か) を検査し、
 出せなければ起動を止める。
 
-例 (`config/chassis_node.yaml`) は 4 輪 X 配置で、各車輪を回転中心まわりの接線方向
-(位置の角度 + 90 deg) に向けている。この向きだと、その場回転で全輪が同じ向きに同じ速さで回る。
+各車輪を回転中心まわりの接線方向 (位置の角度 + 90 deg) に向けると、その場回転で全輪が同じ向きに同じ速さで回る。
+oumuamua (`src/oumuamua_bringup/config/chassis_node.yaml`) の 3 輪オムニはこの向き。
 
 ## 制限
 

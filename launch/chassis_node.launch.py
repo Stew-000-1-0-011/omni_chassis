@@ -2,9 +2,8 @@
 
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument
-from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
+from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
-from launch_ros.substitutions import FindPackageShare
 
 
 def generate_launch_description():
@@ -13,9 +12,7 @@ def generate_launch_description():
     return LaunchDescription([
         DeclareLaunchArgument(
             'params',
-            default_value=PathJoinSubstitution(
-                [FindPackageShare('omni_chassis'), 'config', 'chassis_node.yaml']),
-            description='chassis_node のパラメータファイル',
+            description='chassis_node のパラメータファイル (必須。chassis_node は既定値を持たない)',
         ),
         Node(
             package='omni_chassis',

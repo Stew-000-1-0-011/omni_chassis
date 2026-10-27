@@ -46,17 +46,17 @@ namespace {
 	public:
 		ChassisNode() : rclcpp::Node("chassis_node") {
 			// --- 起動時のみ ---
-			const auto cmd_vel_topic = this->declare_parameter<std::string>("cmd_vel_topic", "cmd_vel");
-			const bool cmd_vel_stamped = this->declare_parameter<bool>("cmd_vel_stamped", false);
-			const double rate = this->declare_parameter<double>("control_rate", 50.0);
+			const auto cmd_vel_topic = this->declare_parameter<std::string>("cmd_vel_topic");
+			const bool cmd_vel_stamped = this->declare_parameter<bool>("cmd_vel_stamped");
+			const double rate = this->declare_parameter<double>("control_rate");
 
 			this->load_wheels();
-			this->base_frame_ = this->declare_parameter<std::string>("base_frame", "base_link");
+			this->base_frame_ = this->declare_parameter<std::string>("base_frame");
 
 			// --- 実行中に変えられる ---
-			this->declare_parameter<double>("cmd_timeout", 0.2);
-			this->declare_parameter<double>("limits.max_wheel_speed", 0.0);
-			this->declare_parameter<double>("limits.max_wheel_accel", 0.0);
+			this->declare_parameter<double>("cmd_timeout");
+			this->declare_parameter<double>("limits.max_wheel_speed");
+			this->declare_parameter<double>("limits.max_wheel_accel");
 			this->read_runtime_params();
 			this->param_cb_ = this->add_post_set_parameters_callback(
 				[this](const std::vector<rclcpp::Parameter>&) { this->read_runtime_params(); }
@@ -77,9 +77,8 @@ namespace {
 			// --- 車輪の実測 (任意) ---
 			// 各トピックの JointState の velocity[0] を、出力軸の角速度 [rad/s] として読む
 			const auto feedback = this->declare_parameter<std::vector<std::string>>(
-				"wheels.feedback_topic", std::vector<std::string>{}
-			);
-			this->feedback_timeout_ = this->declare_parameter<double>("feedback_timeout", 0.1);
+				"wheels.feedback_topic");
+			this->feedback_timeout_ = this->declare_parameter<double>("feedback_timeout");
 			if (!feedback.empty() && feedback.size() != this->wheels_.size()) {
 				throw std::invalid_argument(std::format(
 					"wheels.feedback_topic has {} elements, but there are {} wheels", feedback.size(), this->wheels_.size()
@@ -137,15 +136,15 @@ namespace {
 
 	private:
 		void load_wheels() {
-			const auto x = this->declare_parameter<std::vector<double>>("wheels.x", std::vector<double>{});
-			const auto y = this->declare_parameter<std::vector<double>>("wheels.y", std::vector<double>{});
+			const auto x = this->declare_parameter<std::vector<double>>("wheels.x");
+			const auto y = this->declare_parameter<std::vector<double>>("wheels.y");
 			const auto angle =
-				this->declare_parameter<std::vector<double>>("wheels.angle_deg", std::vector<double>{});
-			const auto radius = this->declare_parameter<std::vector<double>>("wheels.radius", std::vector<double>{});
+				this->declare_parameter<std::vector<double>>("wheels.angle_deg");
+			const auto radius = this->declare_parameter<std::vector<double>>("wheels.radius");
 			const auto topic =
-				this->declare_parameter<std::vector<std::string>>("wheels.topic", std::vector<std::string>{});
+				this->declare_parameter<std::vector<std::string>>("wheels.topic");
 			const auto gear =
-				this->declare_parameter<std::vector<double>>("wheels.gear_ratio", std::vector<double>{});
+				this->declare_parameter<std::vector<double>>("wheels.gear_ratio");
 
 			const std::size_t n = x.size();
 			if (n == 0) {
@@ -305,7 +304,14 @@ namespace {
 
 auto main(int argc, char** argv) -> int {
 	rclcpp::init(argc, argv);
-	rclcpp::spin(std::make_shared<ChassisNode>());
+	try {
+		rclcpp::spin(std::make_shared<ChassisNode>());
+	} catch (const std::exception& e) {
+		// パラメータが足りないときなど (既定値は持たないので、全部パラメータファイルで与える)
+		RCLCPP_FATAL(rclcpp::get_logger("chassis_node"), "%s", e.what());
+		rclcpp::shutdown();
+		return 1;
+	}
 	rclcpp::shutdown();
 	return 0;
 }

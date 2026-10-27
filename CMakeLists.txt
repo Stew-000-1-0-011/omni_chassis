@@ -52,7 +52,7 @@ install(TARGETS chassis_node
 install(DIRECTORY include/
 	DESTINATION include
 )
-install(DIRECTORY config launch
+install(DIRECTORY launch
 	DESTINATION share/${PROJECT_NAME}
 )
 
